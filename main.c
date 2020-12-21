@@ -41,12 +41,11 @@ ISR(TIMER0_OVF_vect)
 	}
 	else if (tick == 361)
 	{
-		PORTB = 1 << PB4;
+		PORTB = 0b00001000;
 	}
 	else if (tick == 721)
 	{
-		PORTB = ~(1 << PB4);
-		PORTA = ~PORTA;
+		PORTB = 0b11110111;
 		tick = 0;
 		timer--;
 	}
