@@ -25,18 +25,18 @@ volatile unsigned int tick;
 volatile unsigned int timer;
 volatile unsigned int status;
 
-void buzzer(int hz, int count);
+void buzzer();
 void init_timer();
 void start_sandglass();
 void timer_end_animation();
+void timer_end_animation_once();
 
 ISR(TIMER0_OVF_vect)
 {
 	tick++;
 	if (timer == 0)
 	{
-		buzzer(480, 120);
-		_delay_ms(200);
+		timer_end_animation_once();
 		timer_end_animation();
 	}
 	else if (tick == 361)
@@ -74,18 +74,12 @@ int main(void)
 	}
 }
 
-void buzzer(int hz, int count)
+void buzzer()
 {
-	int i, j, ms;
-	ms = 500 / 400;
-
-	for (i = 0; i < count; i++)
-	{
-		PORTB = 0x10;
-		_delay_ms(ms);
-		PORTB = 0x00;
-		_delay_ms(ms);
-	}
+	PORTB = 0x10;
+	_delay_ms(0.1);
+	PORTB = 0x00;
+	_delay_ms(0.1); // 2ms 동안 대기
 }
 
 void init_timer()
@@ -326,6 +320,81 @@ void timer_end_animation()
 			PORTD = COLS[electricity_num][i];
 
 			_delay_ms(2); // 2ms 동안 대기
+		}
+
+		if (is_electricity_on)
+		{
+			if (!(PING & 0b00000010))
+			{
+				//전기 안통하게 될 때
+				status = !(PING & 0b00000010);
+				init_timer();
+				break;
+			}
+		}
+		else
+		{
+			if (PING & 0b00000010)
+			{
+				//전기 통하게 될 때
+				status = PING & 0b00000010;
+				init_timer();
+				break;
+			}
+		}
+	}
+}
+
+void timer_end_animation_once()
+{
+	unsigned char i; // 8비트의 변수 선언
+	unsigned char j;
+
+	char COLS[11][8] = {
+		{
+			0b00000000,
+			0b10000001,
+			0b11000011,
+			0b11100111,
+			0b11111111,
+			0b11111111,
+			0b11111111,
+			0b11111111,
+		},
+		{
+			0b11111111,
+			0b11111111,
+			0b11111111,
+			0b11111111,
+			0b11100111,
+			0b11000011,
+			0b10000001,
+			0b00000000,
+		}};
+
+	//전기 안통하고 있는 상태 모래시계 작동중
+	bool is_electricity_on = false;
+	int electricity_num = 0;
+	if (PING & 0b00000010)
+	{
+		//전기 통하고 있는 상태 모래시계 작동중
+		is_electricity_on = true;
+		electricity_num = 1;
+		status = PING & 0b00000010;
+	}
+
+	j = 0;
+	while (j < 120)
+	{
+		j++;
+		// 8줄의 LED 매트릭스가 켜지도록 동작을 반복함
+		for (i = 0; i < 8; i++)
+		{
+			// 8비트의 ROWS 신호 중 1비트만 논리 1로 출력
+			PORTA = (0b10000000 >> (i));
+			// COLS 신호에 데이터 출력
+			PORTD = COLS[electricity_num][i];
+			buzzer();
 		}
 
 		if (is_electricity_on)
